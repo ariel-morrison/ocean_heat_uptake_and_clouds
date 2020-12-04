@@ -14,6 +14,7 @@ os.chdir(working_dir)
 latitude = np.linspace(-90.0, -30.0, 241)
 longitude = np.linspace(-180.0, 179.75, 1440)
 
+
 def landMask(lat, lon):
     lon_grid, lat_grid = np.meshgrid(lon, lat)
     is_on_land = globe.is_land(lat_grid, lon_grid)
@@ -97,8 +98,8 @@ def open_reanalysis_data(working_dir, year):
     return latitude, longitude, seaIce, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800
 
 
-def make_zonal_means(working_dir, year, seaIce_cutoff, seaIceMask):
-    latitude, longitude, seaIce, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800 = open_reanalysis_data(working_dir, year)
+def make_zonal_means(working_dir, year, latitude, longitude, seaIce, seaIce_cutoff, seaIceMask, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800):
+    #latitude, longitude, seaIce, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800 = open_reanalysis_data(working_dir, year)
 
     latmin = -65
     latmax = -44.75
@@ -142,7 +143,7 @@ def make_zonal_means(working_dir, year, seaIce_cutoff, seaIceMask):
     return lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon, lhflx_lon, temp800_lon
 
 
-def granger_timeseries(working_dir, year, seaIce_cutoff):
+def granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff):
     latitude, longitude, seaIce, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800 = open_reanalysis_data(working_dir, year)
 
     is_on_land = landMask(latitude, longitude)
@@ -153,7 +154,7 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
     coslat = np.cos(deg2rad * latitude)
 
     lon2, lat2 = np.meshgrid(longitude, latitude)
-    lat_weights = ma.array(np.cos(np.deg2rad(lat2)), mask=seaIceMask)
+    lat_weights = ma.array(np.cos(np.deg2rad(lat2)), mask = seaIceMask)
 
     latmin = -65
     latmax = -44.75
@@ -164,7 +165,7 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
         warnings.simplefilter("ignore", category=RuntimeWarning)
         # Mask out sea ice pack from each parameter
         # Only interested in heat fluxes/clouds over the ocean
-        seaIce_cutoff = np.int(seaIce_cutoff)
+        seaIce_cutoff = np.float(seaIce_cutoff)
         tcc = tcc.where(is_on_land == False).where(seaIce < seaIce_cutoff)
         lcc = lcc.where(is_on_land == False).where(seaIce < seaIce_cutoff)
         sohu = sohu.where(is_on_land == False).where(seaIce < seaIce_cutoff)
@@ -183,7 +184,6 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
         shflx_SO_timeseries = np.nansum((np.nanmean(shflx[:, latmin_ind:latmax_ind, :], axis=2) * coslat[latmin_ind:latmax_ind]), axis=1)/np.nansum(np.nanmean(lat_weights[latmin_ind:latmax_ind, :], axis=1), axis=0)
         lhflx_SO_timeseries = np.nansum((np.nanmean(lhflx[:, latmin_ind:latmax_ind, :], axis=2) * coslat[latmin_ind:latmax_ind]), axis=1)/np.nansum(np.nanmean(lat_weights[latmin_ind:latmax_ind, :], axis=1), axis=0)
 
-
         ### ------- Test for stationarity ---------
         # Are the time series values independent of time, or do they show a trend/seasonality?
         # Use an Augmented Dickey-Fuller unit root test:
@@ -197,16 +197,18 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
         from statsmodels.tsa.stattools import adfuller
 
         # longitude bands
-        lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon, lhflx_lon, temp800_lon = make_zonal_means(working_dir, year, seaIce_cutoff, seaIceMask)
+        lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon, lhflx_lon, temp800_lon = make_zonal_means(working_dir, year, latitude, longitude, seaIce, seaIce_cutoff, seaIceMask, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800)
         timeseries_lon = [lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon]
         timeseries_lon_name = ['Low clouds', 'Total clouds', 'Stability', 'SOHU', 'Total heat flux']
+
 
         print("Testing stationarity of time series. Null hypothesis is non-stationarity: time series has time-dependent structure.")
         for ts in range(0, len(timeseries_lon)):
             for ilon in range(0, len(longitude)):
-                result = adfuller(timeseries[ts][:, ilon])
+                result = adfuller(timeseries_lon[ts][:, ilon])
                 if result[1] > 0.05 and result[0] < result[4]['5%']:
-                    print("Null hypotheis NOT rejected. " + str(timeseries_lon_name[ts]) + " at " + str(longitude[ilon]) + " (" + str(year) + ") " + " has time-dependent structure. p-value: %f" % result[1])
+                    print("Null hypothesis NOT rejected. " + str(timeseries_lon_name[ts]) + " at " + str(longitude[ilon]) + " (" + str(year) + ") " + " has time-dependent structure. p-value: %f" % result[1])
+
 
         # entire donut
         timeseries = [tcc_SO_timeseries, lcc_SO_timeseries, sohu_SO_timeseries, stability_SO_timeseries,
@@ -221,7 +223,7 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
             elif result[1] > 0.05 and result[1] < 0.1 and result[0] < result[4]['5%']:
                 print("Null hypothesis rejected. " + str(timeseriesName[ts]) + " (" + str(year) + ") " + " time series is stationary, but " + "p-value: %f" % result[1])
             else:
-                print("Null hypotheis NOT rejected. " + str(timeseriesName[ts]) + " (" + str(year) + ") " + " time series has time-dependent structure. p-value: %f" % result[1])
+                print("Null hypothesis NOT rejected. " + str(timeseriesName[ts]) + " (" + str(year) + ") " + " time series has time-dependent structure. p-value: %f" % result[1])
 
         del timeseries, timeseriesName, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800
 
@@ -254,7 +256,7 @@ def granger_timeseries(working_dir, year, seaIce_cutoff):
 
 
 def granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff):
-    seaIce_cutoff = np.int(seaIce_cutoff)
+    seaIce_cutoff = np.float(seaIce_cutoff)
 
     sohu_lon_df, tcc_lon_df, lcc_lon_df, stability_lon_df, thflx_lon_df, sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc = granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff)
 
