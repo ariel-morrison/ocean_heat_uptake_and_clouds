@@ -62,7 +62,7 @@ Example commands:
 
 **User-defined inputs:**
 1. Working directory, where all output will be saved and where data subdirectories are: $working_dir  --  e.g., "/global/cscratch1/sd/armorris" (put it in quotes)
-2. Year
-3. Latitude
-4. Longitude
+2. Year being analyzed: $year
+3. Latitude array for data: $latitude
+4. Longitude array for data: $longitude
 5. Sea ice concentration threshold for masking. All grid cells with an hourly mean sea ice concentration higher than the threshold value will be masked out of the analysis. To keep all grid cells, use 1 as threshold value: $seaIce_cutoff -- e.g., 0.75 (75% concentration)
