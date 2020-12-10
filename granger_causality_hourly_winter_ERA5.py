@@ -184,6 +184,7 @@ def granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, te
         shflx_SO_timeseries = np.nansum((np.nanmean(shflx[:, latmin_ind:latmax_ind, :], axis=2) * coslat[latmin_ind:latmax_ind]), axis=1)/np.nansum(np.nanmean(lat_weights[latmin_ind:latmax_ind, :], axis=1), axis=0)
         lhflx_SO_timeseries = np.nansum((np.nanmean(lhflx[:, latmin_ind:latmax_ind, :], axis=2) * coslat[latmin_ind:latmax_ind]), axis=1)/np.nansum(np.nanmean(lat_weights[latmin_ind:latmax_ind, :], axis=1), axis=0)
 
+
         ### ------- Test for stationarity ---------
         # Are the time series values independent of time, or do they show a trend/seasonality?
         # Use an Augmented Dickey-Fuller unit root test:
@@ -198,23 +199,23 @@ def granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, te
 
         # longitude bands
         lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon, lhflx_lon, temp800_lon = make_zonal_means(working_dir, year, latitude, longitude, seaIce, seaIce_cutoff, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800)
-        timeseries_lon = [lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon]
-        timeseries_lon_name = ['Low clouds', 'Total clouds', 'Stability', 'SOHU', 'Total heat flux']
-
-        # entire donut
-        timeseries = [tcc_SO_timeseries, lcc_SO_timeseries, sohu_SO_timeseries, stability_SO_timeseries,
-                        thflx_SO_timeseries, shflx_SO_timeseries, lhflx_SO_timeseries]
-        timeseriesName = ['Total clouds', 'Low clouds', 'SOHU', 'Stability', 'Total heat flux',
-                          'Sensible heat flux', 'Latent heat flux']
 
         if test_stationarity == True:
+            # longitude bands
+            timeseries_lon = [lcc_lon, tcc_lon, stability_lon, sohu_lon, thflx_lon]
+            timeseries_lon_name = ['Low clouds', 'Total clouds', 'Stability', 'SOHU', 'Total heat flux']
+
+            # entire donut
+            timeseries = [tcc_SO_timeseries, lcc_SO_timeseries, sohu_SO_timeseries, stability_SO_timeseries,
+                            thflx_SO_timeseries, shflx_SO_timeseries, lhflx_SO_timeseries]
+            timeseriesName = ['Total clouds', 'Low clouds', 'SOHU', 'Stability', 'Total heat flux','Sensible heat flux', 'Latent heat flux']
+
             print("Testing stationarity of time series. Null hypothesis is non-stationarity: time series has time-dependent structure.")
             for ts in range(0, len(timeseries_lon)):
                 for ilon in range(0, len(longitude)):
                     result = adfuller(timeseries_lon[ts][:, ilon])
                     if result[1] > 0.05 and result[0] < result[4]['5%']:
                         print("Null hypothesis NOT rejected. " + str(timeseries_lon_name[ts]) + " at " + str(longitude[ilon]) + " (" + str(year) + ") " + " has time-dependent structure. p-value: %f" % result[1])
-
 
             for ts in range(0, len(timeseries)):
                 result = adfuller(timeseries[ts])
@@ -225,23 +226,7 @@ def granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, te
                 else:
                     print("Null hypothesis NOT rejected. " + str(timeseriesName[ts]) + " (" + str(year) + ") " + " time series has time-dependent structure. p-value: %f" % result[1])
 
-        del timeseries_lon, timeseries_lon_name, timeseries, timeseriesName, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800
-
-        ### ---------------- Granger causality: ---------------
-        # It accepts a 2D array with 2 columns as the main argument.
-        # The values are in the first column and the predictor (X) is in the second column.
-        # The Null hypothesis is: the series in the second column does not Granger cause the series in the first.
-        # If the P-Values are less than a significance level (0.05) then you reject the null hypothesis and conclude
-        #       that the said lag of X is indeed useful.
-        # The second argument maxlag says till how many lags of Y should be included in the test.
-        ### -----------------------------------------------------
-
-        # longitude bands
-        sohu_lon_df = pd.DataFrame(data=(sohu_lon), columns=['SOHU'])
-        tcc_lon_df = pd.DataFrame(data=(tcc_lon), columns=['Clouds'])
-        lcc_lon_df = pd.DataFrame(data=(lcc_lon), columns=['Low_clouds'])
-        stability_lon_df = pd.DataFrame(data=(stability_lon), columns=['Stability'])
-        thflx_lon_df = pd.DataFrame(data=(thflx_lon), columns=['Heat_flux'])
+            del timeseries_lon, timeseries_lon_name, timeseries, timeseriesName, tcc, lcc, sohu, stability, thflx, shflx, lhflx, temp800
 
         # entire donut
         sohu_gc = pd.DataFrame(data=(sohu_SO_timeseries), columns=['SOHU'])
@@ -252,21 +237,51 @@ def granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, te
         shflx_gc = pd.DataFrame(data=(shflx_SO_timeseries), columns=['Sensible_heat'])
         lhflx_gc = pd.DataFrame(data=(lhflx_SO_timeseries), columns=['Latent_heat'])
 
-    return sohu_lon_df, tcc_lon_df, lcc_lon_df, stability_lon_df, thflx_lon_df, sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc
+    return sohu_lon, tcc_lon, lcc_lon, stability_lon, thflx_lon, sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc
 
 
 def granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff, test_stationarity):
     seaIce_cutoff = np.float(seaIce_cutoff)
 
-    sohu_lon_df, tcc_lon_df, lcc_lon_df, stability_lon_df, thflx_lon_df, sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc = granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, test_stationarity)
+    sohu_lon, tcc_lon, lcc_lon, stability_lon, thflx_lon, sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc = granger_timeseries(working_dir, year, latitude, longitude, seaIce_cutoff, test_stationarity)
+
+
+    ### ---------------- Granger causality: ---------------
+    # It accepts a 2D array with 2 columns as the main argument.
+    # The values are in the first column and the predictor (X) is in the second column.
+    # The Null hypothesis is: the series in the second column does not Granger cause the series in the first.
+    # If the P-Values are less than a significance level (0.05) then you reject the null hypothesis and conclude
+    #       that the said lag of X is indeed useful.
+    # The second argument maxlag says till how many lags of Y should be included in the test.
+    ### -----------------------------------------------------
 
     from statsmodels.tsa.stattools import grangercausalitytests
 
-    # longitude bands
-    df_lon = pd.concat([sohu_lon_df, tcc_lon_df, lcc_lon_df, stability_lon_df, thflx_lon_df], axis=1)
-    print(df_lon)
+    # longitude bands (averaged over latitude)
+    def granger_function(df_lon):
+        res = grangercausalitytests(df_lon[['SOHU','Clouds']], maxlag=12, verbose=False)
+        out = [np.round(res[key][0]['ssr_ftest'][1], decimals=3) for key in res]
+        return pd.Series(out)
 
-    # entire donut
+    pval_df = pd.DataFrame()
+
+    tcc_lon_df = tcc_lon.to_dataframe()
+    tcc_lon_df.columns = ['Clouds']
+    sohu_lon_df = sohu_lon.to_dataframe()
+    sohu_lon_df.columns = ['SOHU']
+    thflx_lon_df= thflx_lon.to_dataframe()
+    thflx_lon_df.columns = ['Heat_Flux']
+    stability_lon_df = stability_lon.to_dataframe()
+    stability_lon_df.columns = ['Stability']
+
+    df_lon = pd.concat([sohu_lon_df, tcc_lon_df], axis=1)
+    df_lon = df_lon.reset_index()
+    pval_df = df_lon.groupby('longitude').apply(granger_function)
+    pval_df.to_csv('lon_bands_clouds_predict_sohu_granger_causality_ERA5_winter_' + str(year) + '.csv')
+    np.save('lon_bands_clouds_predict_sohu_granger_causality_ERA5_winter_' + str(year) + '.npy', pval_df)
+
+
+    # entire donut or longitude sections
     df = pd.concat([sohu_gc, tcc_gc, lcc_gc, stability_gc, thflx_gc, shflx_gc, lhflx_gc], axis=1)
     colName = list(df.columns)
     pval_df = pd.DataFrame()
@@ -287,9 +302,9 @@ def granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff, tes
 
     pval_df.to_csv('granger_causality_ERA5_winter_' + str(year) + '.csv')
 
-    return df_lon, df
+    return
 
 
 if __name__=='__main__':
     working_dir, year, latitude, longitude, seaIce_cutoff, test_stationarity = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
-    df_lon, df = granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff test_stationarity)
+    granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff, test_stationarity)
