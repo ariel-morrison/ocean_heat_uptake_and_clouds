@@ -274,6 +274,11 @@ def granger_causality(working_dir, year, latitude, longitude, seaIce_cutoff, tes
     stability_lon_df = stability_lon.to_dataframe()
     stability_lon_df.columns = ['Stability']
 
+    df_concat = [tcc_lon_df, sohu_lon_df, stability_lon_df, thflx_lon_df]
+
+    df_lon = pd.concat([tcc_lon_df, sohu_lon_df, stability_lon_df, thflx_lon_df], axis=1)
+    colName = list(df.columns)
+
     df_lon = pd.concat([sohu_lon_df, tcc_lon_df], axis=1)
     df_lon = df_lon.reset_index()
     pval_df = df_lon.groupby('longitude').apply(granger_function)
