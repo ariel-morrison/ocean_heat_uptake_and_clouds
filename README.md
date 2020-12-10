@@ -51,13 +51,13 @@ Note: If a package needs to be uninstalled before the requirements can be instal
 
 5) Run the script with user inputs:
 
-`python southernOceanHeatUptakeClouds.py $working_dir $year $latitude $longitude $seaIce_cutoff`
+`python southernOceanHeatUptakeClouds.py $working_dir $year $latitude $longitude $seaIce_cutoff $test_stationarity`
 
 
 Example commands:
 
 - Running for the year 2016 and excluding all grid cells with an hourly mean sea ice concentration higher than 80%:
-`python southernOceanHeatUptakeClouds.py "/global/cscratch1/sd/armorris" 2016 latitude longitude 0.8`
+`python southernOceanHeatUptakeClouds.py "/global/cscratch1/sd/armorris" 2016 latitude longitude 0.8 True`
 
 
 **User-defined inputs:**
@@ -66,3 +66,4 @@ Example commands:
 3. Latitude array for data: $latitude
 4. Longitude array for data: $longitude
 5. Sea ice concentration threshold for masking. All grid cells with an hourly mean sea ice concentration higher than the threshold value will be masked out of the analysis. To keep all grid cells, use 1 as threshold value: $seaIce_cutoff -- e.g., 0.75 (75% concentration)
+6. Test if time series is stationary - i.e., has no time dependence. Time series must be stationary for Granger analysis. Input is BOOLEAN, can only be True or False: $test_stationarity -- e.g, True
